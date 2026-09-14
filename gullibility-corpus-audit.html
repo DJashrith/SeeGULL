@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gullibility Corpus Audit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600;700&display=swap">
+  <style>
+  :root { color-scheme: light; }
+  body { margin: 0; font: 14px system-ui, -apple-system, "Segoe UI", sans-serif; background: #fafaf9; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<style>
+:root{
+  color-scheme: light;
+  --ground:#f4f5f3; --paper:#ffffff; --sunk:#eceee9;
+  --rule:#d9dcd6; --rule-soft:#e6e8e3;
+  --ink:#16191c; --ink-2:#474d52; --ink-3:#6b7278;
+  --high:#eb6834;          /* level = high gullibility */
+  --low:#2a78d6;           /* level = low gullibility  */
+  --aqua:#1baf7a;          /* holdout split            */
+  --pass:#0f7a52; --fail:#c0392f; --warn:#8a6200;
+  --pass-bg:#e4f3ec; --fail-bg:#fbe9e7; --warn-bg:#faf0d9;
+  --shadow:0 1px 2px rgba(20,25,30,.06), 0 6px 18px rgba(20,25,30,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --ground:#131518; --paper:#1b1e22; --sunk:#202429;
+    --rule:#31363c; --rule-soft:#272c31;
+    --ink:#f2f4f5; --ink-2:#b9c0c7; --ink-3:#8b939b;
+    --high:#d95926; --low:#3987e5; --aqua:#199e70;
+    --pass:#4fbf8e; --fail:#f08a7f; --warn:#e0b64a;
+    --pass-bg:#152a22; --fail-bg:#2d1b19; --warn-bg:#2a2415;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --ground:#131518; --paper:#1b1e22; --sunk:#202429;
+  --rule:#31363c; --rule-soft:#272c31;
+  --ink:#f2f4f5; --ink-2:#b9c0c7; --ink-3:#8b939b;
+  --high:#d95926; --low:#3987e5; --aqua:#199e70;
+  --pass:#4fbf8e; --fail:#f08a7f; --warn:#e0b64a;
+  --pass-bg:#152a22; --fail-bg:#2d1b19; --warn-bg:#2a2415;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1000px; margin:0 auto; padding-inline:20px; padding-block:0 72px}
+h1,h2,h3{font-family:"IBM Plex Serif",Georgia,serif; text-wrap:balance; margin:0}
+h1{font-size:clamp(2rem,5.2vw,3.05rem); font-weight:700; line-height:1.08; letter-spacing:-.02em}
+h2{font-size:clamp(1.32rem,3vw,1.72rem); font-weight:600; line-height:1.2; letter-spacing:-.01em}
+h3{font-size:1.04rem; font-weight:600}
+p{margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+.num{font-variant-numeric:tabular-nums}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace; font-size:.685rem; font-weight:500;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+}
+
+/* ---------- masthead ---------- */
+header.mast{
+  border-bottom:1px solid var(--rule); background:var(--paper);
+  padding-block:44px 34px; margin-bottom:40px;
+}
+.mast .wrap{padding-block:0; display:flex; flex-direction:column; gap:20px}
+.mast .standfirst{font-size:1.1rem; color:var(--ink-2); max-width:63ch}
+.mast .standfirst b{color:var(--ink); font-weight:600}
+.provenance{
+  display:flex; flex-wrap:wrap; gap:0 28px; row-gap:10px;
+  border-top:1px solid var(--rule-soft); padding-top:18px;
+  font-family:"IBM Plex Mono",monospace; font-size:.75rem; color:var(--ink-3);
+}
+.provenance span{white-space:nowrap}
+.provenance b{color:var(--ink-2); font-weight:500}
+
+/* ---------- verdict ---------- */
+.verdict{
+  background:var(--paper); border:1px solid var(--rule);
+  border-left:3px solid var(--high); border-radius:3px;
+  padding:22px 24px; display:flex; flex-direction:column; gap:8px; box-shadow:var(--shadow);
+}
+.verdict p{font-size:1.06rem; color:var(--ink-2); max-width:70ch}
+.verdict strong{color:var(--ink); font-weight:600}
+
+/* ---------- stat strip ---------- */
+.stats{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
+  border:1px solid var(--rule); border-radius:3px; overflow:hidden; background:var(--rule-soft);
+  gap:1px; margin-top:34px;
+}
+.stat{background:var(--paper); padding:16px 18px; display:flex; flex-direction:column; gap:3px}
+.stat .v{font-family:"IBM Plex Mono",monospace; font-size:1.3rem; font-weight:600;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+.stat .k{font-size:.7rem; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3)}
+.stat .s{font-size:.74rem; color:var(--ink-3)}
+
+/* ---------- sections ---------- */
+section{margin-top:56px; display:flex; flex-direction:column; gap:18px}
+section > p{max-width:68ch; color:var(--ink-2)}
+.sec-head{display:flex; flex-direction:column; gap:7px}
+.sec-head .eyebrow{display:flex; align-items:center; gap:9px}
+.sec-head .eyebrow::after{content:""; flex:1; height:1px; background:var(--rule)}
+
+/* ---------- figure ---------- */
+figure{
+  margin:0; background:var(--paper); border:1px solid var(--rule); border-radius:3px;
+  padding:20px 20px 16px; box-shadow:var(--shadow);
+}
+figcaption{font-size:.8rem; color:var(--ink-3); margin-top:12px; padding-top:12px;
+  border-top:1px solid var(--rule-soft); max-width:74ch}
+figcaption b{color:var(--ink-2); font-weight:500}
+.fig-title{font-family:"IBM Plex Sans",sans-serif; font-size:.94rem; font-weight:600; margin-bottom:2px}
+.fig-sub{font-size:.78rem; color:var(--ink-3); margin-bottom:14px}
+.chart-scroll{overflow-x:auto}
+svg{display:block; max-width:100%; height:auto}
+.legend{display:flex; flex-wrap:wrap; gap:6px 18px; margin-bottom:14px; font-size:.78rem; color:var(--ink-2)}
+.legend i{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px;
+  vertical-align:-1px}
+
+/* ---------- tables ---------- */
+.tbl-scroll{overflow-x:auto; border:1px solid var(--rule); border-radius:3px; background:var(--paper)}
+table{border-collapse:collapse; width:100%; font-size:.83rem}
+th,td{padding:9px 14px; text-align:left; border-bottom:1px solid var(--rule-soft); white-space:nowrap}
+th{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3); font-weight:500; background:var(--sunk)}
+tbody tr:last-child td{border-bottom:none}
+td.n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; text-align:right}
+td.wrap-ok{white-space:normal; min-width:210px}
+.chip{
+  display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:.66rem; font-weight:600;
+  letter-spacing:.06em; padding:2px 7px; border-radius:2px;
+}
+.chip.pass{background:var(--pass-bg); color:var(--pass)}
+.chip.fail{background:var(--fail-bg); color:var(--fail)}
+.chip.warn{background:var(--warn-bg); color:var(--warn)}
+
+/* ---------- callouts / traps ---------- */
+.traps{display:grid; grid-template-columns:repeat(auto-fit,minmax(272px,1fr)); gap:16px}
+.trap{background:var(--paper); border:1px solid var(--rule); border-radius:3px; padding:17px 18px;
+  display:flex; flex-direction:column; gap:8px}
+.trap h3{font-family:"IBM Plex Mono",monospace; font-size:.8rem; font-weight:600; color:var(--fail);
+  letter-spacing:.02em}
+.trap p{font-size:.85rem; color:var(--ink-2)}
+.trap code{font-family:"IBM Plex Mono",monospace; font-size:.79rem; background:var(--sunk);
+  padding:1px 5px; border-radius:2px; color:var(--ink)}
+
+/* ---------- example pair ---------- */
+.pair{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--rule);
+  border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+.pair > div{background:var(--paper); padding:16px 17px; display:flex; flex-direction:column; gap:9px}
+.pair .lab{font-family:"IBM Plex Mono",monospace; font-size:.7rem; letter-spacing:.08em;
+  text-transform:uppercase; display:flex; align-items:center; gap:7px}
+.pair .lab i{width:8px; height:8px; border-radius:50%; display:inline-block}
+.turn{font-size:.845rem; line-height:1.55; color:var(--ink-2); padding-left:26px; position:relative}
+.turn::before{
+  content:attr(data-t); position:absolute; left:0; top:.1em;
+  font-family:"IBM Plex Mono",monospace; font-size:.66rem; color:var(--ink-3);
+}
+.turn.same{color:var(--ink); font-weight:500}
+
+/* ---------- checklist ---------- */
+ol.recs{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px;
+  background:var(--rule); border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+ol.recs li{background:var(--paper); padding:15px 18px; display:flex; gap:14px; align-items:baseline}
+ol.recs .i{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--ink-3); flex:none;
+  width:1.4em}
+ol.recs p{font-size:.9rem; color:var(--ink-2)}
+ol.recs b{color:var(--ink); font-weight:600}
+
+footer{margin-top:62px; padding-top:22px; border-top:1px solid var(--rule);
+  font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--ink-3);
+  display:flex; flex-wrap:wrap; gap:8px 26px}
+
+/* ---------- tooltip ---------- */
+#tip{
+  position:fixed; z-index:50; pointer-events:none; opacity:0; transition:opacity .1s;
+  background:var(--ink); color:var(--ground); font-family:"IBM Plex Mono",monospace;
+  font-size:.72rem; line-height:1.45; padding:7px 10px; border-radius:3px; max-width:250px;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);
+}
+#tip.on{opacity:1}
+.hit{cursor:crosshair}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+@media (max-width:620px){
+  .pair{grid-template-columns:1fr}
+  th,td{padding:8px 11px}
+}
+:focus-visible{outline:2px solid var(--low); outline-offset:2px}
+</style>
+
+<header class="mast">
+  <div class="wrap">
+    <p class="eyebrow">Exploratory data analysis &middot; 14 September 2026</p>
+    <h1>Gullibility Corpus Audit</h1>
+    <p class="standfirst">An independent pass over <b>datasets_deepseek_gullibility_v0_3.deduped.3992</b> — the training-ready build behind the SeeGULL probes. The structure is sound and the split is clean. The labels, however, are recoverable from punctuation alone.</p>
+    <div class="provenance">
+      <span><b>archive</b> 7.95 MB &middot; 11,988 entries</span>
+      <span><b>built</b> 2026-09-11 10:26 UTC</span>
+      <span><b>cleaning</b> deduped.v1 &middot; seed 20260911</span>
+      <span><b>generator</b> deepseek-v4-pro-0813</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="verdict">
+    <p class="eyebrow">Bottom line</p>
+    <p>The build is <strong>structurally immaculate</strong> — 100% alternating transcripts, zero metadata drift, zero train/holdout contamination. But every one of the 1,996 <strong>low</strong> conversations contains a question mark in its user turns, and 1,271 of the 1,996 <strong>high</strong> ones contain none. Counting <span class="mono">"?"</span> separates the classes at <strong>AUC 0.991</strong>. Treat that, not 0.5, as the baseline any probe must beat.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="v num">3,992</span><span class="k">Conversations</span><span class="s">1,996 / 1,996</span></div>
+    <div class="stat"><span class="v num">23,752</span><span class="k">Turns</span><span class="s">12,055 user</span></div>
+    <div class="stat"><span class="v num">444,028</span><span class="k">Words</span><span class="s">median 106/conv</span></div>
+    <div class="stat"><span class="v num">3,157</span><span class="k">Topics</span><span class="s">79.1% unique</span></div>
+    <div class="stat"><span class="v num">22</span><span class="k">Gen. calls</span><span class="s">3 seeds</span></div>
+    <div class="stat"><span class="v num">3,150<span style="color:var(--ink-3)">/</span>842</span><span class="k">Train / holdout</span><span class="s">0 shared calls</span></div>
+  </div>
+
+  <!-- ===================== 1. VERIFICATION ===================== -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">01 — Reproduction</p>
+      <h2>Fifteen of eighteen published claims reproduce exactly</h2>
+    </div>
+    <p>The archive ships its own <span class="mono">cleaning_report.txt</span>. Recomputing every figure in it from the raw files: the counts, balances, turn and word totals, pair counts and leak removals all hold. Three do not — and two of those share one root cause, where the underlying numbers are in fact correct and only the label is wrong.</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Published claim</th><th>Observed</th><th>Status</th></tr></thead>
+        <tbody id="claims"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== 2. THE ARTIFACT ===================== -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">02 — The dominant signal</p>
+      <h2>The classes are separated by a punctuation mark</h2>
+    </div>
+    <p>A low-gullibility user, in this corpus, always asks a question. A high-gullibility user usually declares an intention instead — <span class="mono">"I'll start 5000 IU today"</span>. That difference is not subtle behaviour, it is the generator's template, and it is perfectly visible in the punctuation.</p>
+    <figure>
+      <p class="fig-title">Question marks per conversation, user turns only</p>
+      <p class="fig-sub">Every low conversation has at least one. 63.7% of high conversations have none.</p>
+      <div class="legend">
+        <span><i style="background:var(--high)"></i>high gullibility (n=1,996)</span>
+        <span><i style="background:var(--low)"></i>low gullibility (n=1,996)</span>
+      </div>
+      <div class="chart-scroll"><svg id="c1" viewBox="0 0 720 300" role="img" aria-label="Grouped bar chart of question-mark counts per conversation by gullibility level"></svg></div>
+      <figcaption><b>Read:</b> the two distributions are almost disjoint. A single integer feature — the count of <span class="mono">?</span> in <span class="mono">.user.txt</span> — reaches <b>AUC 0.9914</b> over the whole corpus, with no model fitted at all.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ===================== 3. TEMPLATES ===================== -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">03 — Generation structure</p>
+      <h2>Two generator modes, unevenly split across train and holdout</h2>
+    </div>
+    <p>The corpus was produced in 22 API calls. Grouping the <em>high</em> conversations by call reveals that the question-asking rate is not merely variable — it is binary. Ten calls sit at or near zero, eleven sit at or near one, and nothing lands in between. Two different prompt templates were in play, and the batch-aware split happened to sort them unevenly.</p>
+    <figure>
+      <p class="fig-title">Share of <em>high</em> conversations containing a question mark, by generation call</p>
+      <p class="fig-sub">Each dot is one call; dot area is proportional to the number of conversations in it.</p>
+      <div class="legend">
+        <span><i style="background:var(--ink-3)"></i>train call</span>
+        <span><i style="background:var(--aqua)"></i>holdout call</span>
+      </div>
+      <div class="chart-scroll"><svg id="c2" viewBox="0 0 720 300" role="img" aria-label="Dot plot of question-mark rate per generation call, showing a bimodal split"></svg></div>
+      <figcaption><b>Read:</b> template&nbsp;A (top band) keeps the question; template&nbsp;B (bottom band) drops it. Call&nbsp;17 is omitted — it contains 207 conversations, all <em>low</em>, and no <em>high</em> at all. Train is 73% template&nbsp;B; holdout is 62% template&nbsp;A. <b>Text alone predicts which split a conversation belongs to at AUC 0.78</b>, so the evaluation set is a mild distribution shift, not a like-for-like sample.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ===================== 4. SEPARABILITY ===================== -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">04 — Ablations</p>
+      <h2>Separability survives every ablation we tried</h2>
+    </div>
+    <p>If the question mark were the whole story, stripping punctuation would collapse the signal. It does not. TF-IDF logistic regression fitted on <span class="mono">train/</span> and scored on untouched <span class="mono">holdout/</span> stays above 0.997 through masking, de-punctuation, and both at once. The persona is encoded redundantly across syntax, lexis and stance.</p>
+    <figure>
+      <p class="fig-title">Holdout AUC by input view</p>
+      <p class="fig-sub">Fitted on train (n=3,150), scored on holdout (n=842). Full AUC range shown.</p>
+      <div class="chart-scroll"><svg id="c3" viewBox="0 0 720 322" role="img" aria-label="Lollipop chart of holdout AUC for six input views, all near 1.0"></svg></div>
+      <figcaption><b>Read:</b> masking the soft-leak vocabulary (<span class="mono">trust, evidence, source, verify…</span>) moves holdout AUC by <b>0.0000</b>. Even the assistant's replies alone reach 0.969 — the model visibly adapts its content to the persona, so a whole-transcript activation vector encodes the <em>interaction</em>, not the user trait. Within a single template the picture is unchanged (A-only 0.9988, B-only 1.0000), and it transfers across templates (A→B 0.9999, B→A 0.9986).</figcaption>
+    </figure>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Single user turn</th><th>Holdout AUC</th><th>"?" rate, high</th><th>"?" rate, low</th><th>Reading</th></tr></thead>
+        <tbody id="turns"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== 5. LENGTH ===================== -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">05 — A hidden confound</p>
+      <h2>The length confound reverses sign between the splits</h2>
+    </div>
+    <p>The cleaning report quotes a pooled user-length effect of <span class="mono">d = −0.176</span> and calls it small. Pooling is what makes it look small. Computed per split, user length points one way in training and the opposite way in evaluation — a feature that is anti-predictive where the probe learns and predictive where it is judged.</p>
+    <figure>
+      <p class="fig-title">Cohen's <em>d</em> for word count, high minus low</p>
+      <p class="fig-sub">Negative = low-gullibility conversations are longer. Two panels, one shared scale.</p>
+      <div class="legend">
+        <span><i style="background:var(--high)"></i>high runs longer</span>
+        <span><i style="background:var(--low)"></i>low runs longer</span>
+      </div>
+      <div class="chart-scroll"><svg id="c4" viewBox="0 0 720 300" role="img" aria-label="Diverging bar chart of Cohen's d for user and assistant word counts across four subsets"></svg></div>
+      <figcaption><b>Read:</b> user length alone classifies at AUC 0.376 on train and 0.693 on holdout — it flips from anti-predictive to predictive across the boundary. The assistant-side gap is large and stable, and length-matching cannot remove it. The 741 <span class="mono">pair_id</span> pairs do neutralise the user side (<span class="mono">d = −0.001</span>), which is what they were built for.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ===================== 6. HYGIENE ===================== -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">06 — Split hygiene</p>
+      <h2>No contamination crosses the train/holdout boundary</h2>
+    </div>
+    <p>This is where the build earns its keep. Matching every holdout conversation against its nearest training neighbour in TF-IDF space over user text, the closest pair in the entire corpus sits at cosine 0.524 — two independently generated takes on the same grain-free dog food story. Nothing is above 0.60.</p>
+    <div class="stats" style="margin-top:0">
+      <div class="stat"><span class="v num" style="color:var(--pass)">0.524</span><span class="k">Max cross-split cos</span><span class="s">mean 0.156</span></div>
+      <div class="stat"><span class="v num" style="color:var(--pass)">0</span><span class="k">Holdout convs &ge; 0.60</span><span class="s">of 842</span></div>
+      <div class="stat"><span class="v num" style="color:var(--pass)">0</span><span class="k">Exact duplicates</span><span class="s">user text or full</span></div>
+      <div class="stat"><span class="v num">2</span><span class="k">Near-twins &ge; 0.90</span><span class="s">0.05%, same split</span></div>
+      <div class="stat"><span class="v num">0</span><span class="k">Shared openers across split</span><span class="s">of 243 groups</span></div>
+      <div class="stat"><span class="v num">33</span><span class="k">Topics in both splits</span><span class="s">of 3,157</span></div>
+    </div>
+    <p>The published claim of "near-twins 3.41% → 0.40%" is if anything conservative: measured on user text, residual twins at cosine ≥ 0.90 are 0.05%. Holdout topics are 94.1% unseen in training, so the evaluation set tests topic generalisation as well as persona.</p>
+  </section>
+
+  <!-- ===================== 7. MATCHED PAIRS ===================== -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">07 — An undocumented asset</p>
+      <h2>243 minimal pairs the README says don't exist</h2>
+    </div>
+    <p>The README states the corpus has no topic-matched twins across levels, and recommends a difference of group means for that reason. For 486 conversations — 12.2% of the corpus — that is not true. They form 243 pairs that share a <em>byte-identical</em> opening user turn, the same topic and the same generation call, and never straddle the split. Only 136 of them carry a <span class="mono">pair_id</span>. They diverge for the first time at turn two, which is exactly where the persona is applied.</p>
+    <div class="pair">
+      <div>
+        <p class="lab" style="color:var(--high)"><i style="background:var(--high)"></i>high &middot; conversation_1934</p>
+        <p class="turn same" data-t="1">A baking forum says you must feed a sourdough starter every twelve hours or it dies. Is that really necessary?</p>
+        <p class="turn" data-t="2">So I must feed it every twelve hours or it will die. I will set alarms for day and night.</p>
+        <p class="turn" data-t="3">I will feed every twelve hours because that is what the forum says.</p>
+      </div>
+      <div>
+        <p class="lab" style="color:var(--low)"><i style="background:var(--low)"></i>low &middot; conversation_1938</p>
+        <p class="turn same" data-t="1">A baking forum says you must feed a sourdough starter every twelve hours or it dies. Is that really necessary?</p>
+        <p class="turn" data-t="2">Where can I find reliable starter care guidance?</p>
+        <p class="turn" data-t="3">So the twelve-hour rule is only for warm-room bakers.</p>
+      </div>
+    </div>
+    <p>Turn one is shared verbatim; everything downstream is the contrast. This is the cleanest contrastive material in the dataset and it is not indexed anywhere in the manifest — the pairs are recoverable by grouping on the normalised first user turn.</p>
+  </section>
+
+  <!-- ===================== 8. TRAPS ===================== -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">08 — Data-handling traps</p>
+      <h2>Three ways this archive will bite a loader</h2>
+    </div>
+    <div class="traps">
+      <div class="trap">
+        <h3>split == "eval", not "holdout"</h3>
+        <p>The README and cleaning report both document the evaluation half as <code>split == "holdout"</code>, and the folder is named <code>holdout/</code>. Every manifest row and every <code>.json</code> actually says <code>"eval"</code>. A filter on <code>"holdout"</code> returns <b>0 rows</b>, silently. <code>splits.json</code> hedges by shipping both <code>eval_calls</code> and <code>holdout_calls</code> with identical contents.</p>
+      </div>
+      <div class="trap">
+        <h3>dropped.csv joins on the wrong key</h3>
+        <p>Its <code>stem</code> values live in the <em>source</em> namespace; the manifest's <code>stem</code> was re-indexed after cleaning. Joining the two on <code>stem</code> produces <b>280 false matches</b> that mislabel kept conversations as dropped. Join on <code>source_stem</code> — the true overlap is then correctly zero.</p>
+      </div>
+      <div class="trap">
+        <h3>The holdout manifest is misfiled</h3>
+        <p>Documented at <code>holdout/manifest.csv</code>, actually written to <code>holdout/gullibility/manifest.csv</code> — inside the conversation directory, where a glob over that folder will pick it up as a data file. The <code>train/</code> side is correct. Contents are fine: 842 rows matching the combined manifest.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 9. RECS ===================== -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">09 — What follows</p>
+      <h2>Working with this build</h2>
+    </div>
+    <p>None of the above makes the corpus unusable. It makes one particular claim unavailable: that a probe scoring near-ceiling on this data has found a representation of gullibility. The prior EDA's conclusion that "the classes overlap heavily on surface form" does not hold for this build — they are close to deterministically separable from surface form alone.</p>
+    <ol class="recs">
+      <li><span class="i num">01</span><p><b>Report against the 0.991 baseline, not 0.5.</b> A probe that does not beat the question-mark count has learned the template, not the trait.</p></li>
+      <li><span class="i num">02</span><p><b>Build contrasts from the 243 opening-matched pairs.</b> Same opener, same topic, same batch — the only variable left is the persona continuation.</p></li>
+      <li><span class="i num">03</span><p><b>Stratify by generator template, not only by call_index.</b> The current split puts 73% template&nbsp;B in train against 62% template&nbsp;A in holdout.</p></li>
+      <li><span class="i num">04</span><p><b>Recompute the length confound per split.</b> Pooled, it reads as negligible; split apart, it reverses sign.</p></li>
+      <li><span class="i num">05</span><p><b>Read activations over user turns, weighted to turn two</b> — and treat a turn-two result as an upper bound, because turn two is where the template lands.</p></li>
+      <li><span class="i num">06</span><p><b>Validate any steering direction off-template.</b> On text this generator did not write, or the direction will not transfer.</p></li>
+    </ol>
+  </section>
+
+  <footer>
+    <span>Source: datasets_deepseek_gullibility_v0_3.deduped.3992.zip</span>
+    <span>All figures recomputed from the raw archive</span>
+    <span>Outputs: nb/eda_deduped_3992/</span>
+  </footer>
+</div>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  var NS="http://www.w3.org/2000/svg";
+  var tip=document.getElementById("tip");
+  function el(p,n,a){var e=document.createElementNS(NS,n);for(var k in a){if(a[k]!==null&&a[k]!==undefined)e.setAttribute(k,a[k]);}p.appendChild(e);return e;}
+  function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+  function txt(p,x,y,s,o){var t=el(p,"text",{x:x,y:y,fill:(o&&o.fill)||"currentColor","font-size":(o&&o.fs)||11,
+      "text-anchor":(o&&o.anchor)||"start","font-family":(o&&o.ff)||'"IBM Plex Mono", monospace',
+      "font-weight":(o&&o.fw)||400});t.textContent=s;
+      if(o&&o.cls)t.setAttribute("class",o.cls);return t;}
+  function bind(node,html){
+    node.setAttribute("class","hit"); node.setAttribute("tabindex","0");
+    function show(e){tip.innerHTML=html;tip.classList.add("on");move(e);}
+    function move(e){
+      var x=(e.clientX!==undefined?e.clientX:node.getBoundingClientRect().left)+14;
+      var y=(e.clientY!==undefined?e.clientY:node.getBoundingClientRect().top)+14;
+      var w=tip.offsetWidth,h=tip.offsetHeight;
+      if(x+w>innerWidth-8)x=innerWidth-w-8;
+      if(y+h>innerHeight-8)y=y-h-28;
+      tip.style.left=x+"px";tip.style.top=y+"px";
+    }
+    function hide(){tip.classList.remove("on");}
+    node.addEventListener("mouseenter",show);node.addEventListener("mousemove",move);
+    node.addEventListener("mouseleave",hide);node.addEventListener("focus",show);
+    node.addEventListener("blur",hide);
+  }
+
+  /* ---------------- 1. question-mark distribution ---------------- */
+  var Q=[{q:0,hi:1271,lo:0},{q:1,hi:693,lo:44},{q:2,hi:28,lo:882},{q:3,hi:4,lo:886},
+         {q:4,hi:0,lo:166},{q:5,hi:0,lo:16},{q:6,hi:0,lo:2}];
+  function chart1(){
+    var s=document.getElementById("c1"); s.innerHTML="";
+    var L=52,R=16,T=14,B=44,W=720,H=300,pw=W-L-R,ph=H-T-B;
+    var max=1300, bw=pw/Q.length, gap=10, barw=(bw-gap*2)/2-2;
+    [0,325,650,975,1300].forEach(function(v){
+      var y=T+ph-v/max*ph;
+      el(s,"line",{x1:L,x2:W-R,y1:y,y2:y,stroke:css("--rule-soft"),"stroke-width":1});
+      txt(s,L-9,y+4,v.toLocaleString(),{fill:css("--ink-3"),fs:10,anchor:"end"});
+    });
+    el(s,"line",{x1:L,x2:W-R,y1:T+ph,y2:T+ph,stroke:css("--rule"),"stroke-width":1});
+    Q.forEach(function(d,i){
+      var x0=L+i*bw+gap;
+      [["hi",css("--high"),"high"],["lo",css("--low"),"low"]].forEach(function(sp,j){
+        var v=d[sp[0]]; if(v<=0)return;
+        var h=Math.max(v/max*ph,2), x=x0+j*(barw+4), y=T+ph-h;
+        var r=el(s,"rect",{x:x,y:y,width:barw,height:h,fill:sp[1],rx:3,ry:3});
+        bind(r,"<b>"+sp[2]+"</b> &middot; "+d.q+" question mark"+(d.q===1?"":"s")+
+             "<br>"+v.toLocaleString()+" conversations ("+(v/1996*100).toFixed(1)+"%)");
+        if(v>=100)txt(s,x+barw/2,y-6,v.toLocaleString(),{fill:css("--ink-2"),fs:10,anchor:"middle",fw:500});
+      });
+      txt(s,x0+barw+2,T+ph+18,String(d.q),{fill:css("--ink-2"),fs:11,anchor:"middle",fw:500});
+    });
+    txt(s,L+pw/2,H-8,"number of “?” in the conversation’s user turns",
+        {fill:css("--ink-3"),fs:10.5,anchor:"middle",ff:'"IBM Plex Sans", sans-serif'});
+  }
+
+  /* ---------------- 2. per-call bimodality ---------------- */
+  var C=[{c:1,r:.042,s:"train",n:715},{c:2,r:1,s:"train",n:167},{c:3,r:1,s:"train",n:96},
+         {c:4,r:1,s:"holdout",n:100},{c:5,r:1,s:"train",n:98},{c:6,r:.08,s:"holdout",n:99},
+         {c:7,r:1,s:"train",n:171},{c:8,r:.98,s:"holdout",n:100},{c:9,r:.023,s:"train",n:414},
+         {c:10,r:.043,s:"train",n:222},{c:11,r:1,s:"holdout",n:100},{c:12,r:.015,s:"train",n:397},
+         {c:13,r:1,s:"train",n:98},{c:14,r:.037,s:"holdout",n:218},{c:15,r:1,s:"train",n:97},
+         {c:16,r:1,s:"train",n:93},{c:18,r:.07,s:"train",n:87},{c:19,r:0,s:"train",n:97},
+         {c:20,r:0,s:"train",n:95},{c:21,r:.991,s:"holdout",n:225},{c:22,r:.02,s:"train",n:96}];
+  function chart2(){
+    var s=document.getElementById("c2"); s.innerHTML="";
+    var L=52,R=110,T=16,B=44,W=720,H=300,pw=W-L-R,ph=H-T-B;
+    [0,.25,.5,.75,1].forEach(function(v){
+      var y=T+ph-v*ph;
+      el(s,"line",{x1:L,x2:W-R,y1:y,y2:y,stroke:v===.5?css("--rule"):css("--rule-soft"),
+        "stroke-width":1,"stroke-dasharray":v===.5?"3 3":null});
+      txt(s,L-9,y+4,(v*100).toFixed(0)+"%",{fill:css("--ink-3"),fs:10,anchor:"end"});
+    });
+    var span=pw/(C.length-1);
+    // band annotations
+    txt(s,W-R+12,T+18,"template A",{fill:css("--ink-2"),fs:10.5,fw:600});
+    txt(s,W-R+12,T+32,"high still asks",{fill:css("--ink-3"),fs:9.5});
+    txt(s,W-R+12,T+ph-22,"template B",{fill:css("--ink-2"),fs:10.5,fw:600});
+    txt(s,W-R+12,T+ph-8,"high never asks",{fill:css("--ink-3"),fs:9.5});
+    C.forEach(function(d,i){
+      var x=L+i*span, y=T+ph-d.r*ph;
+      var rad=Math.max(4.2,Math.sqrt(d.n)/3.05);
+      var col=d.s==="holdout"?css("--aqua"):css("--ink-3");
+      el(s,"circle",{cx:x,cy:y,r:rad+2,fill:css("--paper")});
+      var c=el(s,"circle",{cx:x,cy:y,r:rad,fill:col,"fill-opacity":.85,stroke:col,"stroke-width":1});
+      bind(c,"<b>call "+d.c+"</b> &middot; "+d.s+"<br>"+d.n.toLocaleString()+" conversations<br>"+
+            (d.r*100).toFixed(1)+"% of its <i>high</i> convs ask a question");
+      txt(s,x,T+ph+18,String(d.c),{fill:css("--ink-3"),fs:9.5,anchor:"middle"});
+    });
+    txt(s,L+pw/2,H-8,"generation call index",
+        {fill:css("--ink-3"),fs:10.5,anchor:"middle",ff:'"IBM Plex Sans", sans-serif'});
+  }
+
+  /* ---------------- 3. separability lollipop ---------------- */
+  var S=[{k:"User turns only",v:.9989,n:"the confound-free view"},
+         {k:"Soft-leak words masked",v:.9989,n:"trust / evidence / source / verify"},
+         {k:"Full transcript",v:.9987,n:"user + assistant"},
+         {k:"All punctuation stripped",v:.9976,n:"removes the “?” outright"},
+         {k:"Masked and unpunctuated",v:.9975,n:"both ablations at once"},
+         {k:"Assistant turns only",v:.9685,n:"the model’s own replies"}];
+  function chart3(){
+    var s=document.getElementById("c3"); s.innerHTML="";
+    var L=196,R=54,T=18,B=52,W=720,H=322,pw=W-L-R,ph=H-T-B;
+    var lo=.5,hi=1.0, X=function(v){return L+(v-lo)/(hi-lo)*pw;};
+    [.5,.6,.7,.8,.9,1].forEach(function(v){
+      el(s,"line",{x1:X(v),x2:X(v),y1:T,y2:T+ph,stroke:css("--rule-soft"),"stroke-width":1});
+      txt(s,X(v),T+ph+18,v.toFixed(1),{fill:css("--ink-3"),fs:10,anchor:"middle"});
+    });
+    // baseline marker
+    var bx=X(.9914);
+    el(s,"line",{x1:bx,x2:bx,y1:T-4,y2:T+ph+2,stroke:css("--high"),"stroke-width":1.5,"stroke-dasharray":"4 3"});
+    var bl=txt(s,bx,T-8,"“?” count baseline 0.991",{fill:css("--high"),fs:10,anchor:"end",fw:500});
+    bl.setAttribute("x",bx-6);
+    var row=ph/S.length;
+    S.forEach(function(d,i){
+      var y=T+row*i+row/2;
+      el(s,"line",{x1:X(lo),x2:X(d.v),y1:y,y2:y,stroke:css("--rule"),"stroke-width":2,"stroke-linecap":"round"});
+      el(s,"circle",{cx:X(d.v),cy:y,r:7,fill:css("--paper")});
+      var c=el(s,"circle",{cx:X(d.v),cy:y,r:5.2,fill:css("--low")});
+      bind(c,"<b>"+d.k+"</b><br>holdout AUC "+d.v.toFixed(4)+"<br>"+d.n);
+      txt(s,L-14,y+4,d.k,{fill:css("--ink"),fs:11.5,anchor:"end",ff:'"IBM Plex Sans", sans-serif',fw:500});
+      txt(s,X(d.v)+12,y+4,d.v.toFixed(4),{fill:css("--ink-2"),fs:10.5,fw:500});
+    });
+    txt(s,L+pw/2,H-10,"AUC on the held-out split (0.5 = chance)",
+        {fill:css("--ink-3"),fs:10.5,anchor:"middle",ff:'"IBM Plex Sans", sans-serif'});
+  }
+
+  /* ---------------- 4. Cohen's d panels ---------------- */
+  var D={user:[{k:"All 3,992",v:-0.176},{k:"Train only",v:-0.354},{k:"Holdout only",v:0.614},{k:"pair_id subset",v:-0.001}],
+         asst:[{k:"All 3,992",v:-0.978},{k:"Train only",v:-1.007},{k:"Holdout only",v:-0.871},{k:"pair_id subset",v:-0.146}]};
+  function chart4(){
+    var s=document.getElementById("c4"); s.innerHTML="";
+    var W=720,H=300,T=34,B=40,gapx=56,L=108;
+    var panelW=(W-L-16-gapx)/2, ph=H-T-B;
+    var lo=-1.15,hi=.8;
+    [["user","User words",0],["asst","Assistant words",1]].forEach(function(p){
+      var key=p[0],title=p[1],idx=p[2];
+      var ox=L+idx*(panelW+gapx);
+      var X=function(v){return ox+(v-lo)/(hi-lo)*panelW;};
+      txt(s,ox,T-14,title,{fill:css("--ink"),fs:11.5,fw:600,ff:'"IBM Plex Sans", sans-serif'});
+      [-1,-.5,0,.5].forEach(function(v){
+        el(s,"line",{x1:X(v),x2:X(v),y1:T,y2:T+ph,stroke:v===0?css("--ink-3"):css("--rule-soft"),
+          "stroke-width":v===0?1.2:1});
+        txt(s,X(v),T+ph+17,v.toFixed(1),{fill:css("--ink-3"),fs:9.5,anchor:"middle"});
+      });
+      var row=ph/4;
+      D[key].forEach(function(d,i){
+        var y=T+row*i+row/2, bh=15;
+        var x0=Math.min(X(0),X(d.v)), w=Math.max(Math.abs(X(d.v)-X(0)),2);
+        var col=d.v>0?css("--high"):css("--low");
+        var r=el(s,"rect",{x:x0,y:y-bh/2,width:w,height:bh,fill:col,rx:3,ry:3});
+        bind(r,"<b>"+title+"</b> &middot; "+d.k+"<br>Cohen’s d = "+d.v.toFixed(3)+"<br>"+
+              (d.v>0?"high runs longer":"low runs longer"));
+        var lab=d.v.toFixed(3), lx=d.v>0?X(d.v)+6:X(d.v)-6;
+        txt(s,lx,y+4,lab,{fill:css("--ink-2"),fs:9.5,anchor:d.v>0?"start":"end",fw:500});
+        if(idx===0)txt(s,L-14,y+4,d.k,{fill:css("--ink"),fs:11,anchor:"end",
+          ff:'"IBM Plex Sans", sans-serif',fw:500});
+      });
+    });
+    txt(s,W/2,H-6,"Cohen’s d  (high − low)",
+        {fill:css("--ink-3"),fs:10.5,anchor:"middle",ff:'"IBM Plex Sans", sans-serif'});
+  }
+
+  /* ---------------- tables ---------------- */
+  var CLAIMS=[
+    ["kept conversations = 3,992","3,992","pass"],
+    ["dropped = 287","287","pass"],
+    ["kept + dropped = 4,279 source","4,279","pass"],
+    ["exactly balanced, 1,996 / 1,996","1,996 / 1,996","pass"],
+    ["each split internally balanced","1,575+1,575 · 421+421","pass"],
+    ["0 call_index shared train / holdout","0 shared","pass"],
+    ["unique topics = 3,157","3,157","pass"],
+    ["turns = 23,752","23,752","pass"],
+    ["words = 444,028","444,028","pass"],
+    ["median 6 turns","6","pass"],
+    ["median 106 words","106","pass"],
+    ["741 pairs / 1,482 conversations","741 / 1,482","pass"],
+    ["length_matched flag == pair_id present","0 disagreements","pass"],
+    ["hard attribute leaks → 0","0 occurrences","pass"],
+    ["files written = 11,981","11,981","pass"],
+    ["train 3,150 / <b>holdout</b> 842","counts right, label is <b>eval</b>","fail"],
+    ["holdout calls == splits.json [4,6,8,11,14,21]","right calls, under <b>eval</b>","fail"],
+    ["“trust” flagged in 392 conversations","<b>404</b> flagged, 407 contain it","fail"]
+  ];
+  var TURNS=[
+    ["Turn 1 only","0.805","35.6%","97.1%","a shared, near-neutral opener"],
+    ["Turn 2 only","<b>1.000</b>","2.0%","99.7%","where the persona template lands"],
+    ["Turn 3 only","0.998","0.3%","50.9%","the persona, already established"]
+  ];
+  function tables(){
+    var tb=document.getElementById("claims");
+    CLAIMS.forEach(function(r){
+      var tr=document.createElement("tr");
+      tr.innerHTML='<td class="wrap-ok">'+r[0]+'</td><td class="wrap-ok mono" style="color:var(--ink-2)">'+
+        r[1]+'</td><td><span class="chip '+r[2]+'">'+(r[2]==="pass"?"REPRODUCES":"DIVERGES")+'</span></td>';
+      tb.appendChild(tr);
+    });
+    var tt=document.getElementById("turns");
+    TURNS.forEach(function(r){
+      var tr=document.createElement("tr");
+      tr.innerHTML='<td style="font-weight:500">'+r[0]+'</td><td class="n">'+r[1]+'</td><td class="n">'+
+        r[2]+'</td><td class="n">'+r[3]+'</td><td class="wrap-ok" style="color:var(--ink-3)">'+r[4]+'</td>';
+      tt.appendChild(tr);
+    });
+  }
+
+  function drawAll(){chart1();chart2();chart3();chart4();}
+  tables(); drawAll();
+  // repaint on theme change so token colours resolve correctly
+  var mq=window.matchMedia("(prefers-color-scheme: dark)");
+  if(mq.addEventListener)mq.addEventListener("change",drawAll);
+  new MutationObserver(drawAll).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+})();
+</script>
+
+</body>
+</html>
