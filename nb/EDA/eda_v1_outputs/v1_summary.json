@@ -1,0 +1,26 @@
+{
+  "conversations": 29621,
+  "low": 16955,
+  "high": 12666,
+  "exact_dup_copies": 4252,
+  "unique_transcripts": 25369,
+  "near_dup_clusters_0.9": 24639,
+  "v03_rows_in_v1": 3993,
+  "question_mark_auc": 0.9809,
+  "separability_auc": {
+    "user turns": 1.0,
+    "assistant turns": 0.9748,
+    "full conversation": 0.9998,
+    "first user turn": 0.9096,
+    "last user turn": 0.9882,
+    "user: no punctuation, no label stems": 0.9999,
+    "user: + no 'I'll'/'I will' phrases": 0.9998
+  },
+  "surface_auc": {
+    "'?' count only": 0.9747,
+    "length only (user, asst, turns)": 0.7225,
+    "user surface (no '?')": 0.9278,
+    "all surface features": 0.9828
+  },
+  "spend_usd": 39.56
+}
