@@ -1,0 +1,5 @@
+features,grouped-CV AUC,n_features
+'?' count only,0.9746734301484805,1
+"length only (user, asst, turns)",0.722546480737005,4
+user surface (no '?'),0.927790946452741,6
+all surface features,0.9828246161600496,10
