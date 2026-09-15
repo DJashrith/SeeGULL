@@ -478,9 +478,14 @@ def main():
         shutil.rmtree(OUT_DIR)
     os.makedirs(OUT_DIR)
 
+    # Conversations live under <split>/gullibility/ -- the attribute-named subfolder
+    # mats12/src/probe_common.py expects (_load_pooled_dataset does
+    # os.path.join(dataset_dir, attribute)), matching the real, working
+    # datasets_deepseek_gullibility_v0_3.deduped.3992/train/gullibility/ layout.
+    ATTRIBUTE = "gullibility"
     SPLIT_DIR = {"train": "train", "eval": "holdout"}
     for dirname in SPLIT_DIR.values():
-        os.makedirs(os.path.join(OUT_DIR, dirname), exist_ok=True)
+        os.makedirs(os.path.join(OUT_DIR, dirname, ATTRIBUTE), exist_ok=True)
 
     work = work.sort_values(["level", "call_index", "index"]).reset_index(drop=True)
     counters = {lv: 0 for lv in LEVELS}
@@ -491,7 +496,7 @@ def main():
         new_idx = counters[lv]; counters[lv] += 1
         new_stem = f"conversation_{new_idx}_gullibility_{lv}"
         dirname = SPLIT_DIR[r["split"]]
-        conv_dir = os.path.join(OUT_DIR, dirname)
+        conv_dir = os.path.join(OUT_DIR, dirname, ATTRIBUTE)
 
         full_txt = "\n".join(
             ("HUMAN: " if role == "user" else "ASSISTANT: ") + content
@@ -558,7 +563,7 @@ def main():
             "holdout_calls": sorted(int(c) for c in eval_calls),
             "holdout_fraction_target": EVAL_FRACTION,
             "holdout_fraction_actual": round(float((work.split == "eval").mean()), 4),
-            "folder_layout": {"train": "train/", "holdout": "holdout/"},
+            "folder_layout": {"train": "train/gullibility/", "holdout": "holdout/gullibility/"},
             "random_seed": RANDOM_SEED,
         }, fh, indent=2)
 
@@ -571,11 +576,11 @@ def main():
     out_paths = sorted(
         (dirname, os.path.basename(p)[:-5])
         for dirname in ("train", "holdout")
-        for p in glob.glob(os.path.join(OUT_DIR, dirname, "conversation_*.json"))
+        for p in glob.glob(os.path.join(OUT_DIR, dirname, ATTRIBUTE, "conversation_*.json"))
     )
     v_rows = []
     for dirname, stem in out_paths:
-        conv_dir = os.path.join(OUT_DIR, dirname)
+        conv_dir = os.path.join(OUT_DIR, dirname, ATTRIBUTE)
         meta = json.load(open(os.path.join(conv_dir, stem + ".json")))
         full = open(os.path.join(conv_dir, stem + ".txt"), encoding="utf-8").read()
         turns = parse_transcript(os.path.join(conv_dir, stem + ".txt"))
@@ -595,7 +600,7 @@ def main():
         checks.append({"check": name, "result": "PASS" if passed else "FAIL", "detail": detail})
 
     chk("every .json has .txt and .user.txt",
-        all(os.path.exists(os.path.join(OUT_DIR, dirname, stem + e))
+        all(os.path.exists(os.path.join(OUT_DIR, dirname, ATTRIBUTE, stem + e))
             for dirname, stem in out_paths for e in (".txt", ".user.txt")),
         f"{len(out_paths):,} triples")
     chk("folder assignment matches split field",
@@ -699,21 +704,25 @@ neighbour length pairing instead of exact Hungarian assignment, for tractability
 
 ```
 datasets_deepseek_gullibility_v1.deduped.{N_FINAL}/
-  train/                     {int((out.split=='train').sum()):,} conversations
+  train/gullibility/          {int((out.split=='train').sum()):,} conversations
     conversation_<i>_gullibility_<level>.txt
     conversation_<i>_gullibility_<level>.user.txt
     conversation_<i>_gullibility_<level>.json
-    manifest.csv
-  holdout/                   {int((out.split=='eval').sum()):,} conversations
+  train/manifest.csv
+  holdout/gullibility/        {int((out.split=='eval').sum()):,} conversations
     conversation_<i>_gullibility_<level>.txt
     conversation_<i>_gullibility_<level>.user.txt
     conversation_<i>_gullibility_<level>.json
-    manifest.csv
+  holdout/manifest.csv
   manifest.csv                combined manifest (all {N_FINAL:,} rows, with a `split` column)
   dropped.csv                  every dropped conversation and why
   splits.json                  which call_index values went to holdout
   cleaning_report.txt
 ```
+
+The `gullibility/` subfolder under each split is the attribute name `mats12/src/probe_common.py`
+expects (`--dataset_dirs .../train/` resolves `<dataset_dir>/<attribute>/*.txt` internally) --
+matching the real `datasets_deepseek_gullibility_v0_3.deduped.3992/train/gullibility/` layout.
 
 ## What was removed
 
@@ -722,7 +731,9 @@ datasets_deepseek_gullibility_v1.deduped.{N_FINAL}/
 ## How to use it
 
 * **Read training data from `train/`, evaluation data from `holdout/`** -- the split is
-  by whole `call_index` values, not random, to avoid batch fingerprint leakage.
+  by whole `call_index` values, not random, to avoid batch fingerprint leakage. Pass
+  `--dataset_dirs .../train/` (not `.../train/gullibility/`) to the mats12 training
+  scripts -- they append the attribute subfolder themselves.
 * **Prefer `.user.txt`** for extracting activations or training a probe (same rationale
   as v0.3 -- see the top-level README).
 * `soft_leak_trust` marks conversations containing the word "trust"; exclude them if you
