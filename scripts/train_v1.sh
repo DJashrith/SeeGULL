@@ -5,6 +5,10 @@ set -e
 # instead of v0.3. Checkpoints land in a separate probe_checkpoints.v1.21k/ so this
 # run never overwrites the existing v0.3 probe_checkpoints.4k/.
 #
+# Run directly (bash scripts/train_v1.sh), or via scripts/run_train.sh for
+# backgrounding + log tailing:
+#   scripts/run_train.sh --script train_v1.sh --bg --watch
+#
 # --dataset_dirs / --checkpoint_dir / --test_dirs are all resolved against
 # --repo_root, which probe_common.py defaults to the mats12/ submodule
 # directory (two levels above probe_common.py), not this repo's root. The
