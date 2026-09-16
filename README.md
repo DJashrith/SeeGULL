@@ -96,23 +96,37 @@ assignment — untractable at this scale).
   <img alt="v1 conversation length distributions by class overlap heavily, but low-gullibility conversations have a median of 118 words versus 102 for high" src="assets/v1-lengths-light.png">
 </picture>
 
-**A probe has now been trained on the cleaned corpus** — same recipe as v0.3
-(`scripts/train_v1.sh`, reusing `scripts/run_train.sh --script train_v1.sh` for background +
-log-tailing), `NousResearch/Llama-2-13b-chat-hf`, evaluated on the true held-out `holdout/` split
-(n=4,148, never seen in training):
+**A probe has now been trained on the cleaned corpus and scored on all four eval sets** — same
+recipe as v0.3 (`scripts/train_v1.sh` then `scripts/eval_v1.sh`, both runnable in the background
+via `scripts/run_train.sh --script <name> --bg --watch`), `NousResearch/Llama-2-13b-chat-hf`:
 
-| Probe | Best layer | Holdout accuracy | Macro F1 |
-|---|---:|---:|---:|
-| Reading probe | 39 | **98.41%** | 0.9841 |
-| Control probe | 29 | **98.84%** | 0.9884 |
+| Eval set | n | v0.3 reading (best probe) | v1 reading (layer 39) | v1 control (layer 29) |
+|---|---:|---:|---:|---:|
+| Holdout | 4,148 | 99.76% | **98.41%** | **98.84%** |
+| Defense-484 | 2,880 | 97.88% | **97.50%** | **87.01%** |
+| Hard-333 | 2,119 | 88.39% | **87.21%** | **80.56%** |
+| Ardulous-66 | 413 | 88.38% | **87.17%** | **80.39%** |
 
 Checkpoints + full eval output: [`probe-ckpts-and-evals-v1-n21k.zip`](probe-ckpts-and-evals-v1-n21k.zip).
 
-**This is not yet an apples-to-apples comparison with the v0.3 numbers above.** Those come from
-four eval sets of increasing distribution shift (Holdout → Defense-484 → Hard-333 → Ardulous-66);
-v1 has so far only been scored on its own same-distribution holdout. Running
-[`scripts/eval_v1.sh`](scripts/eval_v1.sh) against Defense-484 / Hard-333 / Ardulous-66 is the next
-step before v1 can replace v0.3 as "the current best probe" above.
+This is now a genuine apples-to-apples comparison with the v0.3 numbers above (same four eval sets,
+same held-out TruthfulQA-derived claims). Two things stand out:
+
+1. **The v1 reading probe tracks v0.3 closely across all four sets** (within ~1–2pp everywhere,
+   same graceful-degradation shape) despite 5.4× the training data going through an automated,
+   unsupervised cleaning pass rather than v0.3's hand-tuned one — evidence the pipeline scales.
+2. **The v1 control probe generalizes noticeably worse than the reading probe** on the harder,
+   distribution-shifted sets (87.0% → 80.4% vs reading's 97.5% → 87.2%), though it's *better* than
+   reading on same-distribution holdout. Reading (detection) and control (steering) are evidently
+   not the same task in how they generalize — worth digging into before trusting a control probe
+   out-of-distribution.
+
+⚠️ `scripts/eval_v1.sh` gives every `(probe, eval set)` pair its own `--output_dir`
+(`eval_holdout/`, `eval_defense_484/`, etc.) — the mats12 test scripts otherwise default to the
+same `<checkpoint_dir>/eval/` regardless of `--test_dirs`, so running more than one eval set back
+to back silently overwrites the previous one's results (`scripts/eval.sh`'s own header warns about
+exactly this for v0.3). Pass `--output_dir` explicitly if you invoke `test_reading_probe.py` /
+`test_control_probe.py` directly.
 
 <details>
 <summary><strong>v1 raw release, at a glance</strong></summary>
@@ -194,7 +208,7 @@ the raw v1 release does not — it's produced during cleaning.
 | **v0.1** | 170 conversations | First gullibility-only probe |
 | **v0.2** | Sweep across sources | Mixing domain-specific data **hurt** held-out accuracy (overfitting, visible in curves and confusion matrices) → scale general data instead of specialising |
 | **v0.3** | 3,992 cleaned | Current best on the full 4-eval-set sweep; all results above |
-| **v1** | 29,621 raw → 21,534 cleaned | Trained: 98.41% reading / 98.84% control probe holdout accuracy — same-distribution only so far, harder eval sets pending |
+| **v1** | 29,621 raw → 21,534 cleaned | Trained + scored on all 4 eval sets: reading probe tracks v0.3 within ~1–2pp everywhere; control probe generalizes markedly worse off-distribution (87.0%→80.4% vs reading's 97.5%→87.2%) |
 
 ---
 
@@ -246,6 +260,10 @@ bash scripts/train.sh
 #   scripts/run_train.sh --script train_v1.sh --bg --watch
 bash scripts/train_v1.sh
 
+# evaluate v1 on Defense-484 / Hard-333 / Ardulous-66 (each eval set gets its
+# own --output_dir; see the warning above before invoking the test scripts by hand)
+bash scripts/eval_v1.sh
+
 # interactive read + steer dashboard (from mats12/) -- swap in
 # probe_checkpoints.v1.21k for the v1 probe
 python webui/app.py \
@@ -266,12 +284,15 @@ Stated plainly, because they bound every number above:
    gullibility" is not cleanly separated from "the probe reads style."
 3. **Hard-negative selection is fragile.** The Hard-333 / Ardulous-66 splits lean on similarity
    judgments from a small 8B embedding model that does not always rank similarity well.
-4. **Small scale.** The best fully-evaluated probe is trained on ~4k conversations. A v1 probe
-   (21,534 conversations, 5.4× the data) is now trained and scores 98.4–98.8% on its own
-   same-distribution holdout, but hasn't yet been run on the harder Defense-484/Hard-333/
-   Ardulous-66 eval sets that give v0.3's numbers their meaning — that comparison is still open.
-5. **Detection ≠ reaction ≠ control.** Only the first is evidenced here. Whether the model *acts*
-   on this signal, and whether that action can be steered, remains open.
+4. **Scale doesn't obviously help (yet).** A v1 reading probe trained on 21,534 conversations
+   (5.4× v0.3) scores within ~1–2pp of v0.3 on all four eval sets — never better, sometimes
+   slightly worse. Scale alone did not extend generalization here; whether that changes with
+   more careful cleaning (topic-matched pairs, stricter length control) is open.
+5. **Detection ≠ reaction ≠ control.** Reading (detection) and control (steering) probes are not
+   the same task: v1's control probe generalizes markedly worse than its reading probe on
+   distribution-shifted eval sets (87.0%→80.4% vs 97.5%→87.2%) despite scoring *higher* on
+   same-distribution holdout. Whether the model's assistant behaviour actually *changes* along
+   this signal, and whether that's steerable out-of-distribution, remains open.
 
 Full write-up: [limits](docs/mats-applications-answers/6-limits.md) ·
 [evidence against the hypothesis](docs/mats-applications-answers/5-evidence-against-hypothesis.md)
@@ -299,8 +320,8 @@ part of the answer.**
 ## Next
 
 - [x] Clean, balance and train on v1 — 21,534 conversations, 98.41% / 98.84% holdout accuracy
-- [ ] Evaluate the v1 probes on Defense-484 / Hard-333 / Ardulous-66 (`scripts/eval_v1.sh`) for an
-      apples-to-apples comparison with v0.3
+- [x] Evaluate the v1 probes on Defense-484 / Hard-333 / Ardulous-66 — reading probe within ~1–2pp
+      of v0.3 everywhere; control probe generalizes markedly worse off-distribution (open question)
 - [ ] TF-IDF / length baseline as a control
 - [ ] Validate on real human-AI conversations
 - [ ] Causality tests: does the detected signal *change* assistant behaviour?
